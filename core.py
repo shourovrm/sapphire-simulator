@@ -14,6 +14,7 @@ from sha3 import *
 
 ########################################################################
 # Sage script to compute roots of unity:
+## Here precomputed roots are used.
 """
 q = 7681
 
@@ -77,7 +78,7 @@ rej_fast_factors = {
 def mult_psi(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     psi = roots_of_unity[q][2*n]
     factor = 1
     for i in range(n):
@@ -88,7 +89,7 @@ def mult_psi(n, q, poly, line, instr):
 def mult_psi_inv(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     psi = roots_of_unity[q][2*n]
     psi_inv = (psi**(q-2)) % q
     n_inv = (n**(q-2)) % q
@@ -101,7 +102,7 @@ def mult_psi_inv(n, q, poly, line, instr):
 def dif_ntt(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     omega = roots_of_unity[q][n]
     # bitrev_shuffle
     j = 0
@@ -142,7 +143,7 @@ def dif_ntt(n, q, poly, line, instr):
 def dit_ntt(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     omega = roots_of_unity[q][n]
     # ntt
     trans_size = 2
@@ -163,7 +164,7 @@ def dit_ntt(n, q, poly, line, instr):
 def dif_intt(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     omega = roots_of_unity[q][n]
     omega_inv = (omega**(q-2)) % q
     # bitrev_shuffle
@@ -205,7 +206,7 @@ def dif_intt(n, q, poly, line, instr):
 def dit_intt(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
-        exit()        
+        exit()
     omega = roots_of_unity[q][n]
     omega_inv = (omega**(q-2)) % q
     # intt
@@ -408,10 +409,3 @@ def trinary_sample_3(n, q, rho, mode, seed, poly):
             return 2 + 1 + (25+25+math.ceil(n*29/42)+n)
     if mode == 256:
             return 2 + 1 + (25+25+math.ceil(n*33/34)+n)
-
-        
-        
-
-
-
-
