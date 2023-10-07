@@ -99,6 +99,41 @@ def mult_psi_inv(n, q, poly, line, instr):
         factor = (factor * psi_inv) % q
     return 2 + 1 + (n+1)
 
+def reduce_4q_to_2q(val, q):
+    return val if val < 2 * q else val - 2 * q
+
+# def fast_mul_mod_q2(w, t, q):
+#     product = w * t
+#     Q = product >> 64  # Equivalent to L_HIGH_WORD
+#     return w * t - Q * q
+
+def fast_mul_mod_q2(w, t, q):
+    prod = w * t
+    
+    # Compute the number of bits for the shift based on the size of the result
+    # To select the MSBs
+    shift_bits = prod.bit_length() // 2
+    
+    # extract the MSBs
+    Q = prod >> shift_bits
+    
+    # fast modular reduction
+    result = w * t - Q * q
+    
+    return result
+
+
+def harvey_fwd_butterfly(X, Y, w, q):
+    q2 = q << 1
+    X1 = reduce_4q_to_2q(X, q)
+    T = fast_mul_mod_q2(w, Y, q)
+    
+    X_new = X1 + T
+    Y_new = X1 - T + q2
+    
+    return X_new, Y_new
+
+
 def dif_ntt(n, q, poly, line, instr):
     if 2*n not in roots_of_unity[q]:
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
@@ -119,15 +154,40 @@ def dif_ntt(n, q, poly, line, instr):
     for trans_size in [2**i for i in range(1,int(math.log(n,2))+1)]:
         wb = 1
         wb_step = (omega**(int(n/trans_size))) % q
+        # wb_step = fast_mul_mod_q2(omega, int(n / trans_size), q)
         for t in range(trans_size >> 1):
             for trans in range(int(n/trans_size)):
                 i = trans * trans_size + t
                 j = i + (trans_size >> 1)
-                a = poly[i]
-                b = (int(poly[j]) * wb) % q
-                poly[i] = (a + b) % q
-                poly[j] = (a - b) % q
-            wb = (wb * wb_step) % q
+                
+                # Harvey butterfly
+                poly[i], poly[j] = harvey_fwd_butterfly(poly[i], poly[j], wb, q)
+ 
+
+
+                ################ Cooley-Tukey Butterfly ########################
+                # a = poly[i]
+                # b = (int(poly[j]) * wb) % q
+                # poly[i] = (a + b) % q
+                # poly[j] = (a - b) % q
+                ############################################################
+
+                ################ Harvey Butterfly ########################
+                # b = (int(poly[j]) * wb) % q  # Multiply by twiddle factor
+                # temp = b
+                # poly[j] = (poly[i] - temp) % q
+                # poly[i] = (poly[i] + temp) % q
+                ############################################################
+
+                ################ Harvey Butterfly ########################
+                # b = (int(poly[j]) * wb) % q  # Multiply by twiddle factor
+                # temp = b
+                # poly[j] = (poly[i] - temp) % q
+                # poly[i] = (poly[i] + temp) % q
+                ############################################################
+
+            # wb = (wb * wb_step) % q
+            wb = fast_mul_mod_q2(wb, wb_step, q)
     # bitrev_shuffle
     j = 0
     for i in range(1,n):
@@ -147,18 +207,37 @@ def dit_ntt(n, q, poly, line, instr):
     omega = roots_of_unity[q][n]
     # ntt
     trans_size = 2
+     
     for trans_size in [2**i for i in range(1,int(math.log(n,2))+1)]:
         wb = 1
         wb_step = (omega**(int(n/trans_size))) % q
+        # wb_step = fast_mul_mod_q2(omega, int(n / trans_size), q)
+        
         for t in range(trans_size >> 1):
             for trans in range(int(n/trans_size)):
                 i = trans * trans_size + t
                 j = i + (trans_size >> 1)
-                a = poly[i]
-                b = (int(poly[j]) * wb) % q
-                poly[i] = (a + b) % q
-                poly[j] = (a - b) % q
-            wb = (wb * wb_step) % q
+                
+                ## Harvey
+                poly[i], poly[j] = harvey_fwd_butterfly(poly[i], poly[j], wb, q)
+
+                ################ Cooley-Tukey Butterfly ####################
+                # a = poly[i]
+                # b = (int(poly[j]) * wb) % q
+                # poly[i] = (a + b) % q
+                # poly[j] = (a - b) % q
+                ############################################################
+
+                ################ Harvey Butterfly ########################
+                # b = (int(poly[j]) * wb) % q  # Multiply by twiddle factor
+                # temp = b
+                # poly[j] = (poly[i] - temp) % q
+                # poly[i] = (poly[i] + temp) % q
+                ############################################################
+            # wb = (wb * wb_step) % q
+            wb = fast_mul_mod_q2(wb, wb_step, q)
+
+            
     return 2 + 1 + (1+int(n/2))*int(math.log(n,2))
 
 def dif_intt(n, q, poly, line, instr):
@@ -166,6 +245,7 @@ def dif_intt(n, q, poly, line, instr):
         print("\n[Line %d] %s\nERROR: 2n-th root of unity modulo q does not exist for \"n = %d\" and \"q = %d\"\n" % (line, instr, n, q))
         exit()
     omega = roots_of_unity[q][n]
+    omega_inv = (omega**(q-2)) % q
     omega_inv = (omega**(q-2)) % q
     # bitrev_shuffle
     j = 0
@@ -186,10 +266,21 @@ def dif_intt(n, q, poly, line, instr):
             for trans in range(int(n/trans_size)):
                 i = trans * trans_size + t
                 j = i + (trans_size >> 1)
+                
+                ################ Cooley-Tukey Butterfly ####################
                 a = poly[i]
                 b = (int(poly[j]) * wb) % q
                 poly[i] = (a + b) % q
                 poly[j] = (a - b) % q
+                ###########################################################
+
+                ################ Harvey Butterfly ########################
+                # b = (int(poly[j]) * wb) % q  # Multiply by twiddle factor
+                # temp = b
+                # poly[j] = (poly[i] - temp) % q
+                # poly[i] = (poly[i] + temp) % q
+                ###########################################################
+
             wb = (wb * wb_step) % q
     # bitrev_shuffle
     j = 0
@@ -218,10 +309,19 @@ def dit_intt(n, q, poly, line, instr):
             for trans in range(int(n/trans_size)):
                 i = trans * trans_size + t
                 j = i + (trans_size >> 1)
-                a = poly[i]
-                b = (int(poly[j]) * wb) % q
-                poly[i] = (a + b) % q
-                poly[j] = (a - b) % q
+                ################ Cooley-Tukey Butterfly ####################
+                # a = poly[i]
+                # b = (int(poly[j]) * wb) % q
+                # poly[i] = (a + b) % q
+                # poly[j] = (a - b) % q
+                ###########################################################
+
+                ################ Harvey Butterfly ########################
+                b = (int(poly[j]) * wb) % q  # Multiply by twiddle factor
+                temp = b
+                poly[j] = (poly[i] - temp) % q
+                poly[i] = (poly[i] + temp) % q
+                ###########################################################
             wb = (wb * wb_step) % q
     return 2 + 1 + (1+int(n/2))*int(math.log(n,2))
 
